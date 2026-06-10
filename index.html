@@ -446,23 +446,43 @@ async function sbPost(path, body) {
   return r.json();
 }
 
-// ── Get count using HEAD request with content-range ──
+// ── Get real total count from Supabase ──
+// Uses HEAD + Prefer:count=exact with no Range header so Supabase
+// returns the full table count in the content-range header (e.g. "*/42")
 async function getPledgeCount() {
-  const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-    method: 'GET',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      Prefer: 'count=exact',
-      Range: '0-0'
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
+      method: 'HEAD',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+        Prefer: 'count=exact'
+      }
+    });
+    const range = r.headers.get('content-range');
+    // HEAD with count=exact returns "*/TOTAL"
+    if (range && range.includes('/')) {
+      const total = parseInt(range.split('/')[1]);
+      if (!isNaN(total)) return total;
     }
-  });
-  const range = r.headers.get('content-range');
-  // content-range format: "0-0/TOTAL" or "*/TOTAL"
-  if (range && range.includes('/')) {
-    const total = parseInt(range.split('/')[1]);
-    if (!isNaN(total)) return total;
+  } catch (e) {
+    // ignore, fall through to fallback below
   }
+
+  // Fallback: fetch all rows and count them client-side
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+      }
+    });
+    const data = await r.json();
+    if (Array.isArray(data)) return data.length;
+  } catch (e) {
+    // ignore
+  }
+
   return null;
 }
 
@@ -477,30 +497,12 @@ function updateCountDisplay(count) {
 let pledgeCount = 0;
 
 async function loadPledgeCount() {
-  try {
-    const count = await getPledgeCount();
-    if (count !== null) {
-      pledgeCount = count;
-      updateCountDisplay(pledgeCount);
-    } else {
-      // Fallback: fetch all and count client-side
-      const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
-        }
-      });
-      const data = await r.json();
-      if (Array.isArray(data)) {
-        pledgeCount = data.length;
-        updateCountDisplay(pledgeCount);
-      }
-    }
-  } catch (e) {
-    console.warn('Could not load pledge count from Supabase:', e);
-    pledgeCount = parseInt(localStorage.getItem('rubbishPledgeCount') || '0');
+  const count = await getPledgeCount();
+  if (count !== null) {
+    pledgeCount = count;
     updateCountDisplay(pledgeCount);
   }
+  // If both methods fail entirely, leave the display as "—" (default HTML)
 }
 
 loadPledgeCount();
