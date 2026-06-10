@@ -462,25 +462,32 @@ let pledgeCount = 0;
 // initial load
 async function loadPledgeCount() {
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/pledges?select=id',
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-        }
-      }
-    );
+const res = await fetch(
+  SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id',
+  {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+      Prefer: 'count=exact',
+      Range: '0-0'
+    }
+  }
+);
 
-    const data = await res.json();
-    pledgeCount = Array.isArray(data) ? data.length : 0;
-    updateCountDisplay(pledgeCount);
+const range = res.headers.get('content-range');
+pledgeCount = parseInt(range.split('/')[1]);
+
+updateCountDisplay(pledgeCount);
 
   } catch (e) {
-    pledgeCount = parseInt(localStorage.getItem('rubbishPledgeCount') || '0');
+
+    pledgeCount =
+      parseInt(localStorage.getItem('rubbishPledgeCount') || '0');
+
     updateCountDisplay(pledgeCount);
   }
 }
+
 loadPledgeCount();
 
 // ── CURSOR ──
@@ -533,41 +540,76 @@ document.getElementById('modalShare').addEventListener('click',()=>{navigator.cl
 // ── PLEDGE SUBMIT ──
 document.getElementById('pledgeSubmit').addEventListener('click', async () => {
   const name = document.getElementById('fname').value.trim();
-  if (!name) { document.getElementById('fname').focus(); return; }
+
+  if (!name) {
+    document.getElementById('fname').focus();
+    return;
+  }
 
   const btn = document.getElementById('pledgeSubmit');
+
   btn.disabled = true;
   btn.textContent = 'Recording…';
 
   const suburb = document.getElementById('fsuburb').value.trim();
-  let newCount = 0;
 
   try {
-    // Insert pledge into Supabase
-    await sbPost(TABLE, { name, suburb });
-
-    // Get fresh count
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'count=exact', 'Range-Unit': 'items', Range: '0-0' }
+    // Add pledge
+    const result = await sbPost(TABLE, {
+      name: name,
+      suburb: suburb
     });
-    newCount = parseInt(res.headers.get('content-range')?.split('/')?.pop() ?? '1');
-  } catch(e) {
-    // Offline fallback
-    newCount = parseInt(localStorage.getItem('rubbishPledgeCount') || '0') + 1;
-    localStorage.setItem('rubbishPledgeCount', newCount);
+
+    console.log("Supabase insert:", result);
+
+    // Get count
+    const countRes = await fetch(
+      SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id',
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      }
+    );
+
+  const range = countRes.headers.get('content-range');
+const newCount = parseInt(range.split('/')[1]);
+
+    updateCountDisplay(newCount);
+    openModal(name.split(" ")[0], newCount);
+
+  } catch (err) {
+
+    console.error("Pledge failed:", err);
+
+    // fallback counter
+    let fallback =
+      parseInt(localStorage.getItem('rubbishPledgeCount') || "0") + 1;
+
+    localStorage.setItem(
+      'rubbishPledgeCount',
+      fallback
+    );
+
+    updateCountDisplay(fallback);
+    openModal(name.split(" ")[0], fallback);
   }
 
-  updateCountDisplay(newCount);
-  openModal(name.split(' ')[0], newCount);
 
-  // Reset form for next person
+  // reset
   document.getElementById('fname').value = '';
   document.getElementById('fsuburb').value = '';
   document.getElementById('cb1').checked = false;
   document.getElementById('cb2').checked = false;
   document.getElementById('cb3').checked = false;
+
+
   btn.disabled = false;
   btn.textContent = 'I take this pledge →';
+
+
+    
 });
 
 // ── SHARE ──
