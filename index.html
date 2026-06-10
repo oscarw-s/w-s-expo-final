@@ -423,68 +423,16 @@ footer { background: #0a0908; padding: 48px 60px; border-top: 1px solid rgba(245
   <div class="footer-copy">A community awareness initiative · Australia · 2025</div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─────────────────────────────────────────────
 // ⚙️  SUPABASE CONFIG
 // ─────────────────────────────────────────────
 const SUPABASE_URL = 'https://cmdhasrtnhqyfujkdlby.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_heHFiMTemx2YfGuTAuPJiw_pNU7adoM';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZGhhc3J0bmhxeWZ1amtkbGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMzUwODgsImV4cCI6MjA5NjYxMTA4OH0.fEXQqGDoBLmbH_Mb3Yl3OocXkhRKRqMfIICWXxt9da4';
 const TABLE = 'pledges';
 
-// ── Supabase helpers ──
-async function sbPost(path, body) {
-  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
-    },
-    body: JSON.stringify(body)
-  });
-  return r.json();
-}
-
-// ── Get real total count from Supabase ──
-// Uses HEAD + Prefer:count=exact with no Range header so Supabase
-// returns the full table count in the content-range header (e.g. "*/42")
-async function getPledgeCount() {
-  try {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      method: 'HEAD',
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-        Prefer: 'count=exact'
-      }
-    });
-    const range = r.headers.get('content-range');
-    // HEAD with count=exact returns "*/TOTAL"
-    if (range && range.includes('/')) {
-      const total = parseInt(range.split('/')[1]);
-      if (!isNaN(total)) return total;
-    }
-  } catch (e) {
-    // ignore, fall through to fallback below
-  }
-
-  // Fallback: fetch all rows and count them client-side
-  try {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + SUPABASE_ANON_KEY
-      }
-    });
-    const data = await r.json();
-    if (Array.isArray(data)) return data.length;
-  } catch (e) {
-    // ignore
-  }
-
-  return null;
-}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function updateCountDisplay(count) {
   const el = document.getElementById('pledgeNum');
@@ -497,12 +445,13 @@ function updateCountDisplay(count) {
 let pledgeCount = 0;
 
 async function loadPledgeCount() {
-  const count = await getPledgeCount();
-  if (count !== null) {
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('*', { count: 'exact', head: true });
+  if (!error && count !== null) {
     pledgeCount = count;
-    updateCountDisplay(pledgeCount);
+    updateCountDisplay(count);
   }
-  // If both methods fail entirely, leave the display as "—" (default HTML)
 }
 
 loadPledgeCount();
@@ -533,15 +482,15 @@ new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.targ
 const questions=[
   {q:"How many tonnes of waste does Australia generate each year?",opts:["Around 12 million","Around 40 million","Around 74 million","Around 110 million"],answer:2,feedback:"Australia generates over 74 million tonnes of waste per year — one of the highest per-capita rates in the world. That's roughly 3 tonnes for every man, woman and child in the country."},
   {q:"What percentage of litter is dropped within 5 metres of a bin?",opts:["About 25%","About 45%","About 60%","About 75%"],answer:3,feedback:"75% of litter is dropped within 5 metres of an available bin. This is why littering is fundamentally a behaviour problem — not an access problem. The infrastructure is already there."},
-  {q:"How long does it take a standard plastic bag to decompose?",opts:["10–20 years","50–100 years","100–200 years","500–1000 years"],answer:2,feedback:"Plastic bags take roughly 100–200 years to decompose, breaking down into microplastics that persist in soil and water long after the original material has disintegrated. They don't disappear — they just get smaller."},
+  {q:"How long does it take a standard plastic bag to decompose?",opts:["10\u201320 years","50\u2013100 years","100\u2013200 years","500\u20131000 years"],answer:2,feedback:"Plastic bags take roughly 100\u2013200 years to decompose, breaking down into microplastics that persist in soil and water long after the original material has disintegrated. They don't disappear \u2014 they just get smaller."},
   {q:"What is the most commonly littered item in the world?",opts:["Plastic bottles","Fast food wrappers","Cigarette butts","Aluminium cans"],answer:2,feedback:"Cigarette butts are the most common litter item on earth. They contain microplastics, are toxic to wildlife, and take up to 10 years to break down. Around 4.5 trillion are littered globally each year."},
-  {q:"How much does litter cleanup cost Australia annually?",opts:["Around $200 million","Around $930 million","Around $2 billion","Around $5 billion"],answer:1,feedback:"Australia spends approximately $930 million per year cleaning up litter — all of it taxpayer funded. That's money diverted from healthcare, education and infrastructure to deal with entirely preventable behaviour."}
+  {q:"How much does litter cleanup cost Australia annually?",opts:["Around $200 million","Around $930 million","Around $2 billion","Around $5 billion"],answer:1,feedback:"Australia spends approximately $930 million per year cleaning up litter \u2014 all of it taxpayer funded. That's money diverted from healthcare, education and infrastructure to deal with entirely preventable behaviour."}
 ];
 let currentQ=0,score=0;
 function loadQuestion(){const q=questions[currentQ];document.getElementById('quizCounter').textContent='Question '+(currentQ+1)+' of '+questions.length;document.getElementById('quizQ').textContent=q.q;document.getElementById('quizProgress').style.width=(currentQ/questions.length*100)+'%';document.getElementById('quizFeedback').classList.remove('show');document.getElementById('quizNext').classList.remove('show');const opts=document.getElementById('quizOpts');opts.innerHTML='';q.opts.forEach((opt,i)=>{const btn=document.createElement('button');btn.className='quiz-opt';btn.textContent=opt;btn.onclick=()=>selectAnswer(i);opts.appendChild(btn);});}
 function selectAnswer(i){const q=questions[currentQ];const opts=document.querySelectorAll('.quiz-opt');opts.forEach(o=>o.classList.add('disabled'));opts[q.answer].classList.add('correct');if(i!==q.answer)opts[i].classList.add('wrong');else score++;document.getElementById('quizFeedback').textContent=q.feedback;document.getElementById('quizFeedback').classList.add('show');document.getElementById('quizNext').classList.add('show');}
 document.getElementById('quizNext').addEventListener('click',()=>{currentQ++;currentQ>=questions.length?showResult():loadQuestion();});
-function showResult(){document.getElementById('quizProgress').style.width='100%';document.getElementById('quizMain').style.display='none';document.getElementById('quizResult').classList.add('show');document.getElementById('resultScore').textContent=score+'/'+questions.length;const labels=['Keep reading.','Getting there.','Solid effort.','Well informed.','You know your stuff.'];const bodies=["That's okay — most people know less about this than they think. The fact that you're here means you're already more engaged than the average person. Read through the page and come back.","You have a general sense of the issues, but the details matter. The gap between what people think they know and what's actually happening is part of why the problem persists.","You're better informed than most. Understanding the scale and nature of the problem is the first step to changing behaviour — yours and others'.","You clearly follow this closely. Now the question is: are you acting on it? Head to the pledge section and make a commitment.","Impressive. You're exactly the kind of informed person who can make a difference in their community. Share this page and take the pledge."];document.getElementById('resultLabel').textContent=labels[score];document.getElementById('resultBody').textContent=bodies[score];}
+function showResult(){document.getElementById('quizProgress').style.width='100%';document.getElementById('quizMain').style.display='none';document.getElementById('quizResult').classList.add('show');document.getElementById('resultScore').textContent=score+'/'+questions.length;const labels=['Keep reading.','Getting there.','Solid effort.','Well informed.','You know your stuff.'];const bodies=["That's okay \u2014 most people know less about this than they think. The fact that you're here means you're already more engaged than the average person. Read through the page and come back.","You have a general sense of the issues, but the details matter. The gap between what people think they know and what's actually happening is part of why the problem persists.","You're better informed than most. Understanding the scale and nature of the problem is the first step to changing behaviour \u2014 yours and others'.","You clearly follow this closely. Now the question is: are you acting on it? Head to the pledge section and make a commitment.","Impressive. You're exactly the kind of informed person who can make a difference in their community. Share this page and take the pledge."];document.getElementById('resultLabel').textContent=labels[score];document.getElementById('resultBody').textContent=bodies[score];}
 document.getElementById('quizRestart').addEventListener('click',()=>{currentQ=0;score=0;document.getElementById('quizMain').style.display='block';document.getElementById('quizResult').classList.remove('show');loadQuestion();});
 loadQuestion();
 
@@ -560,8 +509,8 @@ document.getElementById('modalClose2').addEventListener('click',closeModal);
 modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 document.getElementById('modalShare').addEventListener('click',()=>{
   navigator.clipboard.writeText(window.location.href).then(()=>{
-    document.getElementById('modalShare').textContent='✓ Link copied!';
-    setTimeout(()=>{document.getElementById('modalShare').textContent='📋 Share this page';},2500);
+    document.getElementById('modalShare').textContent='\u2713 Link copied!';
+    setTimeout(()=>{document.getElementById('modalShare').textContent='\ud83d\udccb Share this page';},2500);
   });
 });
 
@@ -575,27 +524,22 @@ document.getElementById('pledgeSubmit').addEventListener('click', async () => {
 
   const btn = document.getElementById('pledgeSubmit');
   btn.disabled = true;
-  btn.textContent = 'Recording…';
+  btn.textContent = 'Recording\u2026';
 
   const suburb = document.getElementById('fsuburb').value.trim();
 
   try {
-    // Insert the pledge
-    await sbPost(TABLE, { name: name, suburb: suburb });
+    await supabase.from(TABLE).insert({ name: name, suburb: suburb });
 
-    // Get the updated count
-    let newCount = await getPledgeCount();
+    const { count: newCount } = await supabase
+      .from(TABLE)
+      .select('*', { count: 'exact', head: true });
 
-    // Fallback if count fetch fails
-    if (newCount === null) {
-      newCount = pledgeCount + 1;
-    }
+    const finalCount = (newCount !== null) ? newCount : pledgeCount + 1;
+    pledgeCount = finalCount;
+    updateCountDisplay(finalCount);
+    openModal(name.split(' ')[0], finalCount);
 
-    pledgeCount = newCount;
-    updateCountDisplay(newCount);
-    openModal(name.split(' ')[0], newCount);
-
-    // Reset form
     document.getElementById('fname').value = '';
     document.getElementById('fsuburb').value = '';
     document.getElementById('cb1').checked = false;
@@ -604,8 +548,6 @@ document.getElementById('pledgeSubmit').addEventListener('click', async () => {
 
   } catch (err) {
     console.error('Pledge failed:', err);
-
-    // Fallback: use local count
     let fallback = parseInt(localStorage.getItem('rubbishPledgeCount') || '0') + 1;
     localStorage.setItem('rubbishPledgeCount', fallback);
     updateCountDisplay(fallback);
@@ -613,11 +555,11 @@ document.getElementById('pledgeSubmit').addEventListener('click', async () => {
   }
 
   btn.disabled = false;
-  btn.textContent = 'I take this pledge →';
+  btn.textContent = 'I take this pledge \u2192';
 });
 
 // ── SHARE ──
-function copyLink(btn){navigator.clipboard.writeText(window.location.href).then(()=>{btn.textContent='✓ Link copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 Copy link';btn.classList.remove('copied');},2500);});}
+function copyLink(btn){navigator.clipboard.writeText(window.location.href).then(()=>{btn.textContent='\u2713 Link copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='\ud83d\udccb Copy link';btn.classList.remove('copied');},2500);});}
 function shareEmail(){const sub=encodeURIComponent('Something worth reading: The Rubbish Problem');const body=encodeURIComponent('I came across this and thought you should see it.\n\n74 million tonnes of waste. $930 million to clean it up. 75% dropped within 5 metres of a bin.\n\nTake a look: '+window.location.href);window.open('mailto:?subject='+sub+'&body='+body);}
 function printPage(){window.print();}
 </script>
