@@ -1,0 +1,574 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Rubbish Problem — It's Everyone's Issue</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f0e0c; --paper: #f5f0e8; --cream: #ede7d9;
+  --moss: #2d5a27; --moss-light: #3d7a36;
+  --rust: #c4471a; --rust-light: #e05830; --gold: #c8a84b;
+  --sans: 'Barlow', sans-serif; --serif: 'Playfair Display', serif; --cond: 'Barlow Condensed', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--ink); color: var(--paper); font-family: var(--sans); font-weight: 300; overflow-x: hidden; cursor: none; }
+.cursor { width: 10px; height: 10px; background: var(--rust); border-radius: 50%; position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999; transition: transform 0.15s ease, background 0.2s; transform: translate(-50%, -50%); }
+.cursor-ring { width: 36px; height: 36px; border: 1.5px solid rgba(196,71,26,0.5); border-radius: 50%; position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998; transition: transform 0.35s cubic-bezier(.25,.46,.45,.94); transform: translate(-50%, -50%); }
+body:has(a:hover) .cursor, body:has(button:hover) .cursor { transform: translate(-50%,-50%) scale(2.5); background: var(--gold); }
+body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 1000; opacity: 0.4; }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(10,9,8,0.88); backdrop-filter: blur(8px); z-index: 8000; display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+.modal-box { background: #1a1714; border: 1px solid rgba(245,240,232,0.12); border-radius: 10px; padding: 56px 48px; max-width: 560px; width: 100%; text-align: center; position: relative; transform: translateY(24px) scale(0.97); transition: transform 0.4s cubic-bezier(.25,.46,.45,.94); overflow: hidden; }
+.modal-overlay.show .modal-box { transform: translateY(0) scale(1); }
+.modal-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--rust), var(--gold), var(--moss)); }
+.modal-confetti { font-size: 52px; margin-bottom: 20px; display: block; animation: popIn 0.5s 0.2s both; }
+@keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-title { font-family: var(--serif); font-size: 34px; font-weight: 900; line-height: 1.1; color: var(--paper); margin-bottom: 10px; }
+.modal-title span { color: var(--rust); font-style: italic; }
+.modal-count { font-family: var(--cond); font-size: 14px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; }
+.modal-body { font-size: 15px; font-weight: 300; line-height: 1.75; color: rgba(245,240,232,0.65); margin-bottom: 36px; max-width: 420px; margin-left: auto; margin-right: auto; }
+.modal-body strong { color: var(--paper); font-weight: 500; }
+.modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.modal-btn-primary { display: inline-flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 14px 28px; background: var(--rust); color: var(--paper); border: none; border-radius: 2px; cursor: none; transition: background 0.2s, transform 0.15s; }
+.modal-btn-primary:hover { background: var(--rust-light); transform: translateY(-1px); }
+.modal-btn-secondary { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 14px 24px; background: transparent; color: rgba(245,240,232,0.5); border: 1px solid rgba(245,240,232,0.18); border-radius: 2px; cursor: none; transition: all 0.2s; }
+.modal-btn-secondary:hover { border-color: rgba(245,240,232,0.45); color: var(--paper); }
+.modal-close { position: absolute; top: 16px; right: 18px; font-size: 20px; color: rgba(245,240,232,0.25); background: none; border: none; cursor: none; transition: color 0.2s; line-height: 1; }
+.modal-close:hover { color: var(--paper); }
+.modal-pledges-taken { margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(245,240,232,0.08); font-size: 12px; color: rgba(245,240,232,0.3); letter-spacing: 0.06em; }
+.modal-pledges-taken strong { color: var(--rust); }
+
+/* ── NAV ── */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 500; padding: 20px 60px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid transparent; transition: background 0.4s, border-color 0.4s, padding 0.3s; }
+nav.scrolled { background: rgba(15,14,12,0.95); border-color: rgba(245,240,232,0.08); padding: 14px 60px; backdrop-filter: blur(12px); }
+.nav-logo { font-family: var(--cond); font-size: 18px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--paper); }
+.nav-logo span { color: var(--rust); }
+.nav-links { display: flex; gap: 36px; }
+.nav-links a { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.6); text-decoration: none; transition: color 0.2s; cursor: none; }
+.nav-links a:hover { color: var(--paper); }
+.nav-cta { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 22px; background: var(--rust); color: var(--paper); text-decoration: none; border-radius: 2px; transition: background 0.2s, transform 0.15s; cursor: none; }
+.nav-cta:hover { background: var(--rust-light); transform: translateY(-1px); }
+
+/* ── HERO ── */
+#hero { min-height: 100vh; display: flex; align-items: center; padding: 140px 60px 80px; position: relative; overflow: hidden; }
+.hero-bg-lines { position: absolute; inset: 0; background-image: linear-gradient(rgba(245,240,232,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(245,240,232,0.03) 1px, transparent 1px); background-size: 80px 80px; }
+.hero-accent { position: absolute; top: 20%; right: -100px; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(196,71,26,0.12) 0%, transparent 70%); pointer-events: none; }
+.hero-accent2 { position: absolute; bottom: 10%; left: -80px; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(45,90,39,0.15) 0%, transparent 70%); pointer-events: none; }
+.hero-content { position: relative; z-index: 2; max-width: 900px; }
+.hero-overline { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rust); margin-bottom: 24px; opacity: 0; transform: translateY(20px); animation: fadeUp 0.8s 0.2s forwards; }
+.hero-headline { font-family: var(--serif); font-size: clamp(52px, 7vw, 100px); font-weight: 900; line-height: 0.92; letter-spacing: -0.02em; margin-bottom: 32px; opacity: 0; transform: translateY(30px); animation: fadeUp 0.9s 0.4s forwards; }
+.hero-headline em { font-style: italic; color: var(--rust); }
+.hero-sub { font-size: 18px; font-weight: 300; line-height: 1.7; color: rgba(245,240,232,0.65); max-width: 520px; margin-bottom: 48px; opacity: 0; transform: translateY(20px); animation: fadeUp 0.9s 0.6s forwards; }
+.hero-sub strong { color: var(--paper); font-weight: 500; }
+.hero-actions { display: flex; gap: 16px; align-items: center; opacity: 0; transform: translateY(20px); animation: fadeUp 0.9s 0.8s forwards; }
+.btn-primary { display: inline-flex; align-items: center; gap: 10px; font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 16px 32px; background: var(--rust); color: var(--paper); text-decoration: none; border-radius: 2px; border: none; cursor: none; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
+.btn-primary:hover { background: var(--rust-light); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(196,71,26,0.35); }
+.btn-primary .arrow { transition: transform 0.2s; }
+.btn-primary:hover .arrow { transform: translateX(4px); }
+.btn-secondary { font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.6); text-decoration: none; cursor: none; transition: color 0.2s; display: flex; align-items: center; gap: 8px; }
+.btn-secondary:hover { color: var(--paper); }
+.btn-secondary::before { content: '↓'; font-size: 16px; }
+.hero-ticker { position: absolute; bottom: 40px; left: 0; right: 0; overflow: hidden; border-top: 1px solid rgba(245,240,232,0.08); padding: 16px 0; }
+.ticker-track { display: flex; gap: 60px; white-space: nowrap; animation: ticker 28s linear infinite; }
+.ticker-item { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(245,240,232,0.35); flex-shrink: 0; }
+.ticker-item span { color: var(--rust); margin-right: 12px; }
+
+/* ── SECTIONS ── */
+section { padding: 120px 60px; position: relative; }
+.section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--rust); margin-bottom: 16px; }
+.section-title { font-family: var(--serif); font-size: clamp(36px, 4.5vw, 58px); font-weight: 900; line-height: 1.05; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section-title em { font-style: italic; color: var(--rust); }
+.section-body { font-size: 16px; font-weight: 300; line-height: 1.75; color: rgba(245,240,232,0.62); max-width: 560px; }
+.section-body strong { color: var(--paper); font-weight: 500; }
+.reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.8s cubic-bezier(.25,.46,.45,.94), transform 0.8s cubic-bezier(.25,.46,.45,.94); }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.1s; } .reveal-delay-2 { transition-delay: 0.2s; } .reveal-delay-3 { transition-delay: 0.3s; } .reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ── STATS ── */
+#stats { background: var(--paper); color: var(--ink); padding: 80px 60px; }
+.stats-intro { text-align: center; margin-bottom: 60px; }
+.stats-intro .section-label { color: var(--rust); } .stats-intro .section-title { color: var(--ink); }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(15,14,12,0.1); border: 1px solid rgba(15,14,12,0.1); }
+.stat-cell { background: var(--cream); padding: 40px 32px; position: relative; overflow: hidden; transition: background 0.3s; }
+.stat-cell:hover { background: #e8e0ce; }
+.stat-cell::before { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--rust); transform: scaleX(0); transform-origin: left; transition: transform 0.4s ease; }
+.stat-cell:hover::before { transform: scaleX(1); }
+.stat-number { font-family: var(--cond); font-size: 64px; font-weight: 900; line-height: 1; color: var(--ink); letter-spacing: -0.02em; }
+.stat-number .unit { font-size: 36px; color: var(--rust); }
+.stat-label { font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(15,14,12,0.55); margin-top: 10px; line-height: 1.4; }
+.stat-desc { font-size: 13px; font-weight: 300; line-height: 1.5; color: rgba(15,14,12,0.65); margin-top: 12px; border-top: 1px solid rgba(15,14,12,0.1); padding-top: 12px; }
+
+/* ── IMPACT ── */
+#impact { background: var(--ink); }
+.impact-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+.impact-visual { position: relative; height: 480px; }
+.impact-card { position: absolute; background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.1); border-radius: 4px; padding: 24px 28px; transition: transform 0.3s, border-color 0.3s; }
+.impact-card:hover { border-color: rgba(196,71,26,0.4); transform: translateY(-4px); }
+.ic-1 { top: 0; left: 0; right: 80px; } .ic-2 { top: 140px; left: 60px; right: 0; } .ic-3 { bottom: 0; left: 0; right: 120px; }
+.ic-number { font-family: var(--cond); font-size: 48px; font-weight: 900; color: var(--rust); line-height: 1; }
+.ic-label { font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--paper); margin-top: 6px; }
+.ic-body { font-size: 13px; font-weight: 300; line-height: 1.55; color: rgba(245,240,232,0.55); margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(245,240,232,0.08); }
+.impact-text .section-body { margin-bottom: 36px; }
+.progress-list { display: flex; flex-direction: column; gap: 20px; margin-top: 32px; }
+.progress-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+.progress-name { color: var(--paper); } .progress-pct { color: var(--rust); }
+.progress-track { height: 3px; background: rgba(245,240,232,0.1); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--rust), var(--rust-light)); border-radius: 2px; width: 0; transition: width 1.4s cubic-bezier(.25,.46,.45,.94); }
+
+/* ── QUIZ ── */
+#quiz { background: #141210; border-top: 1px solid rgba(245,240,232,0.06); border-bottom: 1px solid rgba(245,240,232,0.06); }
+.quiz-wrap { max-width: 760px; margin: 0 auto; text-align: center; }
+.quiz-wrap .section-title { margin-bottom: 12px; }
+.quiz-wrap .section-body { max-width: 100%; text-align: center; margin: 0 auto 56px; }
+.quiz-card { background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.1); border-radius: 6px; padding: 48px; text-align: left; position: relative; overflow: hidden; }
+.quiz-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--rust), var(--moss)); }
+.quiz-progress-bar { height: 3px; background: rgba(245,240,232,0.08); border-radius: 2px; margin-bottom: 36px; overflow: hidden; }
+.quiz-progress-fill { height: 100%; background: var(--rust); border-radius: 2px; transition: width 0.5s ease; }
+.quiz-counter { font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--rust); margin-bottom: 10px; }
+.quiz-question { font-family: var(--serif); font-size: 26px; font-weight: 700; line-height: 1.3; margin-bottom: 32px; color: var(--paper); }
+.quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 32px; }
+.quiz-opt { padding: 16px 20px; background: rgba(245,240,232,0.04); border: 1.5px solid rgba(245,240,232,0.1); border-radius: 4px; font-size: 14px; font-weight: 400; color: rgba(245,240,232,0.75); text-align: left; cursor: none; transition: all 0.2s; }
+.quiz-opt:hover { border-color: rgba(196,71,26,0.5); color: var(--paper); background: rgba(196,71,26,0.06); }
+.quiz-opt.correct { border-color: var(--moss); background: rgba(45,90,39,0.15); color: var(--paper); }
+.quiz-opt.wrong { border-color: var(--rust); background: rgba(196,71,26,0.15); color: var(--paper); opacity: 0.7; }
+.quiz-opt.disabled { pointer-events: none; }
+.quiz-feedback { font-size: 14px; line-height: 1.65; color: rgba(245,240,232,0.7); padding: 16px 20px; background: rgba(245,240,232,0.04); border-radius: 4px; border-left: 3px solid var(--moss); display: none; margin-bottom: 24px; }
+.quiz-feedback.show { display: block; }
+.quiz-next { display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 28px; background: var(--rust); color: var(--paper); border: none; border-radius: 2px; cursor: none; transition: background 0.2s, transform 0.15s; }
+.quiz-next.show { display: inline-flex; }
+.quiz-next:hover { background: var(--rust-light); transform: translateY(-1px); }
+.quiz-result { text-align: center; display: none; }
+.quiz-result.show { display: block; }
+.result-score { font-family: var(--cond); font-size: 100px; font-weight: 900; color: var(--rust); line-height: 1; letter-spacing: -0.02em; margin: 16px 0 8px; }
+.result-label { font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--paper); margin-bottom: 16px; }
+.result-body { font-size: 15px; font-weight: 300; line-height: 1.7; color: rgba(245,240,232,0.6); max-width: 480px; margin: 0 auto 28px; }
+.quiz-restart { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; padding: 12px 24px; background: transparent; color: rgba(245,240,232,0.5); border: 1px solid rgba(245,240,232,0.2); border-radius: 2px; cursor: none; transition: all 0.2s; margin-top: 8px; }
+.quiz-restart:hover { border-color: rgba(245,240,232,0.5); color: var(--paper); }
+
+/* ── PLEDGE ── */
+#pledge { background: var(--ink); }
+.pledge-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+.pledge-text .section-body { margin-bottom: 32px; }
+.pledge-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.pledge-list li { display: flex; align-items: flex-start; gap: 14px; font-size: 14px; line-height: 1.55; color: rgba(245,240,232,0.65); padding-bottom: 14px; border-bottom: 1px solid rgba(245,240,232,0.07); }
+.pledge-list li:last-child { border-bottom: none; }
+.pledge-list li::before { content: attr(data-n); font-family: var(--cond); font-size: 22px; font-weight: 900; color: var(--rust); flex-shrink: 0; line-height: 1; margin-top: -2px; }
+.pledge-form-wrap { background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.1); border-radius: 6px; padding: 40px; position: relative; overflow: hidden; }
+.pledge-form-wrap::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--rust), var(--gold)); }
+.form-title { font-family: var(--serif); font-size: 24px; font-weight: 700; line-height: 1.3; margin-bottom: 8px; }
+.form-subtitle { font-size: 13px; font-weight: 300; color: rgba(245,240,232,0.5); margin-bottom: 28px; line-height: 1.5; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(245,240,232,0.45); margin-bottom: 8px; }
+.form-input { width: 100%; background: rgba(245,240,232,0.06); border: 1px solid rgba(245,240,232,0.12); border-radius: 3px; padding: 13px 16px; font-family: var(--sans); font-size: 14px; font-weight: 300; color: var(--paper); outline: none; transition: border-color 0.2s, background 0.2s; cursor: none; }
+.form-input:focus { border-color: rgba(196,71,26,0.5); background: rgba(245,240,232,0.08); }
+.form-input::placeholder { color: rgba(245,240,232,0.25); }
+.pledge-checkbox-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.pledge-cb { display: flex; align-items: flex-start; gap: 12px; cursor: none; }
+.pledge-cb input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; accent-color: var(--rust); cursor: none; }
+.pledge-cb label { font-size: 13px; font-weight: 300; line-height: 1.5; color: rgba(245,240,232,0.65); cursor: none; }
+.form-submit { width: 100%; padding: 15px; background: var(--rust); color: var(--paper); border: none; border-radius: 3px; font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; cursor: none; transition: background 0.2s, transform 0.15s, box-shadow 0.2s; }
+.form-submit:hover { background: var(--rust-light); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(196,71,26,0.3); }
+.form-submit:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
+.pledge-count { font-size: 11px; font-weight: 400; color: rgba(245,240,232,0.35); text-align: center; margin-top: 14px; }
+.pledge-count strong { color: var(--rust); }
+
+/* ── ACTION ── */
+#action { background: var(--moss); color: var(--paper); }
+.action-header { text-align: center; margin-bottom: 64px; }
+.action-header .section-label { color: rgba(245,240,232,0.6); }
+.action-header .section-title { color: var(--paper); }
+.action-header .section-body { margin: 0 auto; text-align: center; color: rgba(245,240,232,0.7); max-width: 520px; }
+.action-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.2); }
+.action-card { background: #2d5a27; padding: 36px 32px; transition: background 0.3s; cursor: default; position: relative; overflow: hidden; }
+.action-card::after { content: ''; position: absolute; inset: 0; background: rgba(245,240,232,0.04); opacity: 0; transition: opacity 0.3s; }
+.action-card:hover { background: #366b30; }
+.action-card:hover::after { opacity: 1; }
+.action-num { font-family: var(--cond); font-size: 72px; font-weight: 900; color: rgba(245,240,232,0.1); line-height: 1; margin-bottom: 16px; }
+.action-icon { font-size: 28px; margin-bottom: 14px; }
+.action-title { font-family: var(--cond); font-size: 22px; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--paper); margin-bottom: 12px; }
+.action-body { font-size: 14px; font-weight: 300; line-height: 1.65; color: rgba(245,240,232,0.68); }
+
+/* ── SHARE ── */
+#share { background: var(--ink); text-align: center; }
+.share-wrap { max-width: 640px; margin: 0 auto; }
+.share-wrap .section-title { margin-bottom: 12px; }
+.share-wrap .section-body { margin: 0 auto 48px; max-width: 100%; text-align: center; }
+.share-card { background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.1); border-radius: 6px; padding: 36px; text-align: left; margin-bottom: 24px; position: relative; }
+.share-card::before { content: '"'; position: absolute; top: 16px; left: 24px; font-family: var(--serif); font-size: 80px; line-height: 1; color: rgba(196,71,26,0.2); pointer-events: none; }
+.share-text { font-family: var(--serif); font-size: 19px; font-weight: 700; font-style: italic; line-height: 1.5; color: var(--paper); padding-top: 20px; margin-bottom: 12px; }
+.share-source { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.35); }
+.share-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.share-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 22px; border: 1.5px solid rgba(245,240,232,0.2); background: transparent; color: rgba(245,240,232,0.7); border-radius: 2px; cursor: none; transition: all 0.2s; }
+.share-btn:hover { border-color: var(--rust); color: var(--paper); background: rgba(196,71,26,0.08); }
+.share-btn.copied { border-color: var(--moss); color: var(--paper); }
+
+/* ── FOOTER ── */
+footer { background: #0a0908; padding: 48px 60px; border-top: 1px solid rgba(245,240,232,0.07); display: flex; align-items: center; justify-content: space-between; }
+.footer-logo { font-family: var(--cond); font-size: 18px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+.footer-logo span { color: var(--rust); }
+.footer-copy { font-size: 12px; font-weight: 300; color: rgba(245,240,232,0.3); letter-spacing: 0.06em; }
+
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+@media (max-width: 900px) {
+  nav { padding: 18px 24px; } nav.scrolled { padding: 12px 24px; } .nav-links { display: none; }
+  section { padding: 80px 24px; } #hero { padding: 120px 24px 80px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .impact-layout, .pledge-layout { grid-template-columns: 1fr; gap: 48px; }
+  .impact-visual { height: 360px; } .action-cards { grid-template-columns: 1fr; } .quiz-options { grid-template-columns: 1fr; }
+  footer { flex-direction: column; gap: 16px; text-align: center; }
+  .modal-box { padding: 40px 28px; } .modal-title { font-size: 26px; }
+  .modal-actions { flex-direction: column; } .modal-btn-primary, .modal-btn-secondary { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="thanksModal">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose">✕</button>
+    <span class="modal-confetti">🌿</span>
+    <div class="modal-title">Thanks, <span id="modalName">friend</span>.</div>
+    <div class="modal-count" id="modalCount"></div>
+    <p class="modal-body">You've just joined a growing group of Australians who've decided to take the rubbish problem seriously. <strong>Every pledge matters.</strong> The change starts with the decision you just made.</p>
+    <div class="modal-actions">
+      <button class="modal-btn-primary" id="modalShare">📋 Share this page</button>
+      <button class="modal-btn-secondary" id="modalClose2">Back to site</button>
+    </div>
+    <div class="modal-pledges-taken"><strong id="modalTotal">0</strong> people have now taken the pledge — across all devices.</div>
+  </div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<nav id="nav">
+  <div class="nav-logo">The<span>.</span>Rubbish<span>.</span>Problem</div>
+  <div class="nav-links">
+    <a href="#stats">The Numbers</a><a href="#impact">The Impact</a>
+    <a href="#quiz">Test Yourself</a><a href="#pledge">Take Action</a><a href="#journey">Our Journey</a>
+  </div>
+  <a href="#pledge" class="nav-cta">Take the Pledge</a>
+</nav>
+
+<section id="hero">
+  <div class="hero-bg-lines"></div><div class="hero-accent"></div><div class="hero-accent2"></div>
+  <div class="hero-content">
+    <div class="hero-overline">A matter of public responsibility</div>
+    <h1 class="hero-headline">We Have a<br><em>Rubbish</em><br>Problem.</h1>
+    <p class="hero-sub">Every year, Australians generate over <strong>74 million tonnes of waste</strong>. A significant portion of it ends up on our streets, in our waterways, and in our communities. This is not an abstract environmental issue — it affects where we live, how we feel, and what we leave behind.</p>
+    <div class="hero-actions">
+      <a href="#stats" class="btn-primary">See the numbers <span class="arrow">→</span></a>
+      <a href="#pledge" class="btn-secondary">Take action</a>
+    </div>
+  </div>
+  <div class="hero-ticker">
+    <div class="ticker-track">
+      <span class="ticker-item"><span>→</span>74 million tonnes of waste generated annually in Australia</span>
+      <span class="ticker-item"><span>→</span>Only 63% of Australian waste was recycled in 2020–21</span>
+      <span class="ticker-item"><span>→</span>Plastic takes up to 450 years to decompose</span>
+      <span class="ticker-item"><span>→</span>8 million tonnes of plastic enter the world's oceans each year</span>
+      <span class="ticker-item"><span>→</span>75% of litter is dropped within 5 metres of a bin</span>
+      <span class="ticker-item"><span>→</span>Cigarette butts are the most common litter item globally</span>
+      <span class="ticker-item"><span>→</span>74 million tonnes of waste generated annually in Australia</span>
+      <span class="ticker-item"><span>→</span>Only 63% of Australian waste was recycled in 2020–21</span>
+      <span class="ticker-item"><span>→</span>Plastic takes up to 450 years to decompose</span>
+      <span class="ticker-item"><span>→</span>8 million tonnes of plastic enter the world's oceans each year</span>
+      <span class="ticker-item"><span>→</span>75% of litter is dropped within 5 metres of a bin</span>
+      <span class="ticker-item"><span>→</span>Cigarette butts are the most common litter item globally</span>
+    </div>
+  </div>
+</section>
+
+<section id="stats">
+  <div class="stats-intro reveal"><div class="section-label">The numbers</div><h2 class="section-title">Hard facts.<br>Harder to ignore.</h2></div>
+  <div class="stats-grid reveal reveal-delay-2">
+    <div class="stat-cell"><div class="stat-number"><span class="counter" data-target="74" data-suffix="M">0</span><span class="unit">+</span></div><div class="stat-label">Tonnes of waste generated in Australia each year</div><div class="stat-desc">That's roughly 3 tonnes per Australian per year — one of the highest per-capita rates in the world.</div></div>
+    <div class="stat-cell"><div class="stat-number"><span class="counter" data-target="8" data-suffix="M">0</span><span class="unit">T</span></div><div class="stat-label">Tonnes of plastic entering the ocean annually, worldwide</div><div class="stat-desc">If current trends continue, there could be more plastic than fish in the ocean by 2050.</div></div>
+    <div class="stat-cell"><div class="stat-number"><span class="counter" data-target="450" data-suffix="">0</span><span class="unit">yrs</span></div><div class="stat-label">Time for a plastic bottle to fully decompose</div><div class="stat-desc">A bottle dropped today will outlast every person alive on earth right now — and their children.</div></div>
+    <div class="stat-cell"><div class="stat-number"><span class="counter" data-target="75" data-suffix="">0</span><span class="unit">%</span></div><div class="stat-label">Of litter dropped within 5 metres of a bin</div><div class="stat-desc">This is a behaviour problem, not an infrastructure problem. The bins are already there.</div></div>
+  </div>
+</section>
+
+<section id="impact">
+  <div class="impact-layout">
+    <div class="impact-visual reveal">
+      <div class="impact-card ic-1"><div class="ic-number">$930M</div><div class="ic-label">Cost of litter cleanup in Australia per year</div><div class="ic-body">Taxpayer funded. Every dollar spent cleaning up preventable litter is a dollar not spent on schools, hospitals, or infrastructure.</div></div>
+      <div class="impact-card ic-2"><div class="ic-number">#1</div><div class="ic-label">Cigarette butts — most littered item on earth</div><div class="ic-body">Toxic to wildlife, slow to break down, and filtered with microplastics that leach into waterways.</div></div>
+      <div class="impact-card ic-3"><div class="ic-number">63%</div><div class="ic-label">Australian recycling rate — well below where it needs to be</div><div class="ic-body">The national target is 80% by 2030. We are not on track.</div></div>
+    </div>
+    <div class="impact-text reveal reveal-delay-2">
+      <div class="section-label">Why it matters</div>
+      <h2 class="section-title">It doesn't stay where<br>you left <em>it.</em></h2>
+      <p class="section-body">Litter travels. Rain carries it into stormwater drains. Wind takes it to parks and reserves. Waterways deliver it to the sea. What begins as one piece of rubbish on a footpath can end up on a beach 300 kilometres away — or inside a seabird's stomach. <strong>Nothing disappears. It just moves.</strong></p>
+      <div class="progress-list" id="progressList">
+        <div class="progress-item"><div class="progress-header"><span class="progress-name">Plastic waste entering the sea</span><span class="progress-pct">↑ 8M tonnes/yr</span></div><div class="progress-track"><div class="progress-fill" data-width="88"></div></div></div>
+        <div class="progress-item"><div class="progress-header"><span class="progress-name">Waste from packaging</span><span class="progress-pct">↑ 33% of total</span></div><div class="progress-track"><div class="progress-fill" data-width="72"></div></div></div>
+        <div class="progress-item"><div class="progress-header"><span class="progress-name">Litter within 5m of a bin</span><span class="progress-pct">75%</span></div><div class="progress-track"><div class="progress-fill" data-width="75"></div></div></div>
+        <div class="progress-item"><div class="progress-header"><span class="progress-name">Recycling rate — national average</span><span class="progress-pct">63% (target: 80%)</span></div><div class="progress-track"><div class="progress-fill" data-width="63"></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quiz">
+  <div class="quiz-wrap">
+    <div class="reveal"><div class="section-label">Test yourself</div><h2 class="section-title">How much do you<br>actually know?</h2><p class="section-body">Most people think they understand the rubbish problem. Most people are surprised. Five quick questions — answers backed by data.</p></div>
+    <div class="quiz-card reveal reveal-delay-2" id="quizCard">
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quizProgress" style="width:0%"></div></div>
+      <div id="quizMain">
+        <div class="quiz-counter" id="quizCounter">Question 1 of 5</div>
+        <div class="quiz-question" id="quizQ"></div>
+        <div class="quiz-options" id="quizOpts"></div>
+        <div class="quiz-feedback" id="quizFeedback"></div>
+        <button class="quiz-next" id="quizNext">Next question →</button>
+      </div>
+      <div class="quiz-result" id="quizResult">
+        <div class="section-label" style="text-align:center">Your result</div>
+        <div class="result-score" id="resultScore"></div>
+        <div class="result-label" id="resultLabel"></div>
+        <p class="result-body" id="resultBody"></p>
+        <a href="#pledge" class="btn-primary" style="margin:0 auto 16px;width:fit-content">Take the pledge →</a><br>
+        <button class="quiz-restart" id="quizRestart">Try again</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pledge">
+  <div class="pledge-layout">
+    <div class="pledge-text reveal">
+      <div class="section-label">Take action</div>
+      <h2 class="section-title">Small habits.<br><em>Real</em> change.</h2>
+      <p class="section-body">Awareness isn't enough. The rubbish problem is solved by consistent, ordinary actions taken by millions of people — not by grand gestures. Here's what actually makes a difference.</p>
+      <ul class="pledge-list">
+        <li data-n="01">Always use a bin. If one isn't nearby, keep your rubbish with you until you find one.</li>
+        <li data-n="02">Separate your waste correctly at home. Contaminated recycling goes to landfill regardless.</li>
+        <li data-n="03">Pick up one piece of litter you didn't drop. Every time. Make it a habit, not an occasion.</li>
+        <li data-n="04">Talk about it. Social norms change when people start finding littering unacceptable — not just unsightly.</li>
+        <li data-n="05">Support businesses and councils that reduce packaging and invest in infrastructure.</li>
+      </ul>
+    </div>
+    <div class="reveal reveal-delay-2">
+      <div class="pledge-form-wrap">
+        <div class="form-title">Make the pledge.</div>
+        <p class="form-subtitle">Commit to taking this seriously. Add your name to the growing list of Australians who've decided to act on the rubbish problem.</p>
+        <div class="form-group"><label class="form-label" for="fname">Your name</label><input class="form-input" type="text" id="fname" placeholder="First and last name"></div>
+        <div class="form-group"><label class="form-label" for="fsuburb">Your suburb or town</label><input class="form-input" type="text" id="fsuburb" placeholder="e.g. Fitzroy, Melbourne"></div>
+        <div class="pledge-checkbox-group">
+          <label class="pledge-cb"><input type="checkbox" id="cb1"><label for="cb1">I commit to always using a bin — or holding onto my rubbish until I find one.</label></label>
+          <label class="pledge-cb"><input type="checkbox" id="cb2"><label for="cb2">I commit to picking up at least one piece of litter I didn't drop, regularly.</label></label>
+          <label class="pledge-cb"><input type="checkbox" id="cb3"><label for="cb3">I commit to talking to someone in my life about the rubbish problem this month.</label></label>
+        </div>
+        <button class="form-submit" id="pledgeSubmit">I take this pledge →</button>
+        <div class="pledge-count"><strong id="pledgeNum">—</strong> people have taken the pledge so far.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="action">
+  <div class="action-header reveal"><div class="section-label">Practical steps</div><h2 class="section-title">What you can do<br>starting today.</h2><p class="section-body">None of this requires money, a campaign, or a lifestyle change. It requires a decision.</p></div>
+  <div class="action-cards reveal reveal-delay-2">
+    <div class="action-card"><div class="action-num">01</div><div class="action-icon">🗑️</div><div class="action-title">Bin it. Every time.</div><p class="action-body">No exceptions. No "just this once." The bin is almost always nearby. This is the single most impactful individual habit change you can make — because it's guaranteed to help.</p></div>
+    <div class="action-card"><div class="action-num">02</div><div class="action-icon">♻️</div><div class="action-title">Recycle properly.</div><p class="action-body">Wishful recycling — putting something in the recycling bin hoping it's recyclable — contaminates entire loads. Check what's accepted in your council area. When in doubt, general waste.</p></div>
+    <div class="action-card"><div class="action-num">03</div><div class="action-icon">👋</div><div class="action-title">Say something.</div><p class="action-body">Politely. Not confrontationally. Littering becomes less socially acceptable when people are willing to gently challenge it. You don't need to lecture — just notice it, aloud, to the people around you.</p></div>
+    <div class="action-card"><div class="action-num">04</div><div class="action-icon">📢</div><div class="action-title">Spread awareness.</div><p class="action-body">Share the facts. Post about it. Talk about it at dinner. The rubbish problem persists partly because most people assume someone else is dealing with it. You can change that assumption.</p></div>
+    <div class="action-card"><div class="action-num">05</div><div class="action-icon">🏘️</div><div class="action-title">Join a clean-up.</div><p class="action-body">Clean Up Australia Day, local council programs, neighbourhood groups. One morning per year with your community removes real rubbish from real places — and builds the habit of caring.</p></div>
+    <div class="action-card"><div class="action-num">06</div><div class="action-icon">✉️</div><div class="action-title">Contact your council.</div><p class="action-body">Report overflowing bins. Advocate for better infrastructure in poorly-served areas. Councils respond to resident pressure — and inadequate bin access is a genuine part of the problem.</p></div>
+  </div>
+</section>
+
+<section id="share">
+  <div class="share-wrap reveal">
+    <div class="section-label">Spread the word</div>
+    <h2 class="section-title">Tell someone who<br>needs to hear it.</h2>
+    <p class="section-body">The most effective way to change behaviour is peer-to-peer. Share this page with someone in your life — a friend, a colleague, your kids' school community.</p>
+    <div class="share-card">
+      <p class="share-text">"74 million tonnes of waste. $930 million to clean it up. 75% of litter dropped within 5 metres of a bin. This is solvable — it's a behaviour problem, not an infrastructure problem."</p>
+      <div class="share-source">Key facts from The Rubbish Problem · therubbishproblem.au</div>
+    </div>
+    <div class="share-buttons">
+      <button class="share-btn" onclick="copyLink(this)">📋 Copy link</button>
+      <button class="share-btn" onclick="shareEmail()">✉️ Share via email</button>
+      <button class="share-btn" onclick="printPage()">🖨️ Print this page</button>
+    </div>
+  </div>
+</section>
+
+<section id="journey">
+  <div class="share-wrap reveal">
+    <div class="section-label">Project Reflection</div>
+    <h2 class="section-title">Our Journey</h2>
+    <div class="share-card">
+      <p class="share-text">"Our solution evolved from a simple idea into a larger awareness campaign."</p>
+      <p style="line-height:1.8;color:rgba(245,240,232,0.7);margin-top:20px;">At the beginning of this project, our original idea was to create posters that would inform people about the rubbish problem. While posters can be effective for sharing information, we realised they would only reach a limited audience and would not provide much interaction.</p>
+      <p style="line-height:1.8;color:rgba(245,240,232,0.7);margin-top:20px;">As we developed our project, we wanted to take more action rather than simply displaying information. We decided to create an interactive website that could educate people through facts, statistics, quizzes and a pledge system.</p>
+      <p style="line-height:1.8;color:rgba(245,240,232,0.7);margin-top:20px;">Instead of abandoning our poster idea, we combined both solutions. The posters help attract attention and direct people to our website, while the website provides much more detailed information and opportunities for people to get involved.</p>
+      <p style="line-height:1.8;color:rgba(245,240,232,0.7);margin-top:20px;">One challenge we encountered was finding a way to make people engage with the issue instead of simply reading about it. By combining posters with an interactive website and pledge system, we created a solution that encourages people to learn, reflect and take action.</p>
+      <div class="share-source">Reflection on our design process</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">The<span>.</span>Rubbish<span>.</span>Problem</div>
+  <div class="footer-copy">A community awareness initiative · Australia · 2025</div>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// ⚙️  SUPABASE CONFIG — paste your values here
+// ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://cmdhasrtnhqyfujkdlby.supabase.co';       // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZGhhc3J0bmhxeWZ1amtkbGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMzUwODgsImV4cCI6MjA5NjYxMTA4OH0.fEXQqGDoBLmbH_Mb3Yl3OocXkhRKRqMfIICWXxt9da4'; // long string from Supabase dashboard
+const TABLE = 'pledges';                        // table name you'll create
+
+// ── Supabase helpers ──
+async function sbGet(path) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  });
+  return r.json();
+}
+async function sbPost(path, body) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+async function sbRpc(fn, body) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ── Load global pledge count ──
+async function loadPledgeCount() {
+  try {
+    const data = await sbGet(TABLE + '?select=count&head=true');
+    // Use COUNT via RPC for accuracy
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'count=exact', 'Range-Unit': 'items', Range: '0-0' }
+    });
+    const count = res.headers.get('content-range')?.split('/')?.pop() ?? '0';
+    updateCountDisplay(parseInt(count) || 0);
+  } catch(e) {
+    // Fallback to localStorage if Supabase not configured yet
+    updateCountDisplay(parseInt(localStorage.getItem('rubbishPledgeCount') || '0'));
+  }
+}
+
+function updateCountDisplay(n) {
+  document.getElementById('pledgeNum').textContent = n.toLocaleString();
+}
+
+loadPledgeCount();
+
+// ── CURSOR ──
+const cursor = document.getElementById('cursor'), ring = document.getElementById('cursorRing');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+function animCursor(){cursor.style.left=mx+'px';cursor.style.top=my+'px';rx+=(mx-rx)*0.12;ry+=(my-ry)*0.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animCursor);}
+animCursor();
+
+// ── NAV ──
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>60));
+
+// ── REVEAL ──
+const ro=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');}),{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+
+// ── COUNTERS ──
+function animateCounter(el){const target=parseInt(el.dataset.target),suffix=el.dataset.suffix||'',start=performance.now();function step(now){const p=Math.min((now-start)/1800,1),ease=1-Math.pow(1-p,3);el.textContent=Math.round(ease*target)+suffix;if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.querySelectorAll('.counter').forEach(animateCounter);}),{threshold:0.3}).observe(document.querySelector('.stats-grid'));
+
+// ── PROGRESS BARS ──
+new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.querySelectorAll('.progress-fill').forEach(b=>setTimeout(()=>b.style.width=b.dataset.width+'%',200));}),{threshold:0.3}).observe(document.getElementById('progressList'));
+
+// ── QUIZ ──
+const questions=[
+  {q:"How many tonnes of waste does Australia generate each year?",opts:["Around 12 million","Around 40 million","Around 74 million","Around 110 million"],answer:2,feedback:"Australia generates over 74 million tonnes of waste per year — one of the highest per-capita rates in the world. That's roughly 3 tonnes for every man, woman and child in the country."},
+  {q:"What percentage of litter is dropped within 5 metres of a bin?",opts:["About 25%","About 45%","About 60%","About 75%"],answer:3,feedback:"75% of litter is dropped within 5 metres of an available bin. This is why littering is fundamentally a behaviour problem — not an access problem. The infrastructure is already there."},
+  {q:"How long does it take a standard plastic bag to decompose?",opts:["10–20 years","50–100 years","100–200 years","500–1000 years"],answer:2,feedback:"Plastic bags take roughly 100–200 years to decompose, breaking down into microplastics that persist in soil and water long after the original material has disintegrated. They don't disappear — they just get smaller."},
+  {q:"What is the most commonly littered item in the world?",opts:["Plastic bottles","Fast food wrappers","Cigarette butts","Aluminium cans"],answer:2,feedback:"Cigarette butts are the most common litter item on earth. They contain microplastics, are toxic to wildlife, and take up to 10 years to break down. Around 4.5 trillion are littered globally each year."},
+  {q:"How much does litter cleanup cost Australia annually?",opts:["Around $200 million","Around $930 million","Around $2 billion","Around $5 billion"],answer:1,feedback:"Australia spends approximately $930 million per year cleaning up litter — all of it taxpayer funded. That's money diverted from healthcare, education and infrastructure to deal with entirely preventable behaviour."}
+];
+let currentQ=0,score=0;
+function loadQuestion(){const q=questions[currentQ];document.getElementById('quizCounter').textContent='Question '+(currentQ+1)+' of '+questions.length;document.getElementById('quizQ').textContent=q.q;document.getElementById('quizProgress').style.width=(currentQ/questions.length*100)+'%';document.getElementById('quizFeedback').classList.remove('show');document.getElementById('quizNext').classList.remove('show');const opts=document.getElementById('quizOpts');opts.innerHTML='';q.opts.forEach((opt,i)=>{const btn=document.createElement('button');btn.className='quiz-opt';btn.textContent=opt;btn.onclick=()=>selectAnswer(i);opts.appendChild(btn);});}
+function selectAnswer(i){const q=questions[currentQ];const opts=document.querySelectorAll('.quiz-opt');opts.forEach(o=>o.classList.add('disabled'));opts[q.answer].classList.add('correct');if(i!==q.answer)opts[i].classList.add('wrong');else score++;document.getElementById('quizFeedback').textContent=q.feedback;document.getElementById('quizFeedback').classList.add('show');document.getElementById('quizNext').classList.add('show');}
+document.getElementById('quizNext').addEventListener('click',()=>{currentQ++;currentQ>=questions.length?showResult():loadQuestion();});
+function showResult(){document.getElementById('quizProgress').style.width='100%';document.getElementById('quizMain').style.display='none';document.getElementById('quizResult').classList.add('show');document.getElementById('resultScore').textContent=score+'/'+questions.length;const labels=['Keep reading.','Getting there.','Solid effort.','Well informed.','You know your stuff.'];const bodies=["That's okay — most people know less about this than they think. The fact that you're here means you're already more engaged than the average person. Read through the page and come back.","You have a general sense of the issues, but the details matter. The gap between what people think they know and what's actually happening is part of why the problem persists.","You're better informed than most. Understanding the scale and nature of the problem is the first step to changing behaviour — yours and others'.","You clearly follow this closely. Now the question is: are you acting on it? Head to the pledge section and make a commitment.","Impressive. You're exactly the kind of informed person who can make a difference in their community. Share this page and take the pledge."];document.getElementById('resultLabel').textContent=labels[score];document.getElementById('resultBody').textContent=bodies[score];}
+document.getElementById('quizRestart').addEventListener('click',()=>{currentQ=0;score=0;document.getElementById('quizMain').style.display='block';document.getElementById('quizResult').classList.remove('show');loadQuestion();});
+loadQuestion();
+
+// ── MODAL ──
+const modal=document.getElementById('thanksModal');
+function openModal(name,count){document.getElementById('modalName').textContent=name;document.getElementById('modalCount').textContent='Pledge #'+count.toLocaleString();document.getElementById('modalTotal').textContent=count.toLocaleString();modal.classList.add('show');document.body.style.overflow='hidden';}
+function closeModal(){modal.classList.remove('show');document.body.style.overflow='';}
+document.getElementById('modalClose').addEventListener('click',closeModal);
+document.getElementById('modalClose2').addEventListener('click',closeModal);
+modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+document.getElementById('modalShare').addEventListener('click',()=>{navigator.clipboard.writeText(window.location.href).then(()=>{document.getElementById('modalShare').textContent='✓ Link copied!';setTimeout(()=>{document.getElementById('modalShare').textContent='📋 Share this page';},2500);});});
+
+// ── PLEDGE SUBMIT ──
+document.getElementById('pledgeSubmit').addEventListener('click', async () => {
+  const name = document.getElementById('fname').value.trim();
+  if (!name) { document.getElementById('fname').focus(); return; }
+
+  const btn = document.getElementById('pledgeSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Recording…';
+
+  const suburb = document.getElementById('fsuburb').value.trim();
+  let newCount = 0;
+
+  try {
+    // Insert pledge into Supabase
+    await sbPost(TABLE, { name, suburb });
+
+    // Get fresh count
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'count=exact', 'Range-Unit': 'items', Range: '0-0' }
+    });
+    newCount = parseInt(res.headers.get('content-range')?.split('/')?.pop() ?? '1');
+  } catch(e) {
+    // Offline fallback
+    newCount = parseInt(localStorage.getItem('rubbishPledgeCount') || '0') + 1;
+    localStorage.setItem('rubbishPledgeCount', newCount);
+  }
+
+  updateCountDisplay(newCount);
+  openModal(name.split(' ')[0], newCount);
+
+  // Reset form for next person
+  document.getElementById('fname').value = '';
+  document.getElementById('fsuburb').value = '';
+  document.getElementById('cb1').checked = false;
+  document.getElementById('cb2').checked = false;
+  document.getElementById('cb3').checked = false;
+  btn.disabled = false;
+  btn.textContent = 'I take this pledge →';
+});
+
+// ── SHARE ──
+function copyLink(btn){navigator.clipboard.writeText(window.location.href).then(()=>{btn.textContent='✓ Link copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 Copy link';btn.classList.remove('copied');},2500);});}
+function shareEmail(){const sub=encodeURIComponent('Something worth reading: The Rubbish Problem');const body=encodeURIComponent('I came across this and thought you should see it.\n\n74 million tonnes of waste. $930 million to clean it up. 75% dropped within 5 metres of a bin.\n\nTake a look: '+window.location.href);window.open('mailto:?subject='+sub+'&body='+body);}
+function printPage(){window.print();}
+</script>
+</body>
+</html>
