@@ -457,25 +457,30 @@ async function sbRpc(fn, body) {
 }
 
 // ── Load global pledge count ──
+let pledgeCount = 0;
+
+// initial load
 async function loadPledgeCount() {
   try {
-    const data = await sbGet(TABLE + '?select=count&head=true');
-    // Use COUNT via RPC for accuracy
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, Prefer: 'count=exact', 'Range-Unit': 'items', Range: '0-0' }
-    });
-    const count = res.headers.get('content-range')?.split('/')?.pop() ?? '0';
-    updateCountDisplay(parseInt(count) || 0);
-  } catch(e) {
-    // Fallback to localStorage if Supabase not configured yet
-    updateCountDisplay(parseInt(localStorage.getItem('rubbishPledgeCount') || '0'));
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/pledges?select=id',
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+        }
+      }
+    );
+
+    const data = await res.json();
+    pledgeCount = Array.isArray(data) ? data.length : 0;
+    updateCountDisplay(pledgeCount);
+
+  } catch (e) {
+    pledgeCount = parseInt(localStorage.getItem('rubbishPledgeCount') || '0');
+    updateCountDisplay(pledgeCount);
   }
 }
-
-function updateCountDisplay(n) {
-  document.getElementById('pledgeNum').textContent = n.toLocaleString();
-}
-
 loadPledgeCount();
 
 // ── CURSOR ──
