@@ -362,13 +362,27 @@ footer { background: #0a0908; padding: 48px 60px; border-top: 1px solid rgba(245
         <p class="form-subtitle">Commit to taking this seriously. Add your name to the growing list of Australians who've decided to act on the rubbish problem.</p>
         <div class="form-group"><label class="form-label" for="fname">Your name</label><input class="form-input" type="text" id="fname" placeholder="First and last name"></div>
         <div class="form-group"><label class="form-label" for="fsuburb">Your suburb or town</label><input class="form-input" type="text" id="fsuburb" placeholder="e.g. Fitzroy, Melbourne"></div>
-        <div class="pledge-checkbox-group">
-          <label class="pledge-cb"><input type="checkbox" id="cb1"><label for="cb1">I commit to always using a bin — or holding onto my rubbish until I find one.</label></label>
-          <label class="pledge-cb"><input type="checkbox" id="cb2"><label for="cb2">I commit to picking up at least one piece of litter I didn't drop, regularly.</label></label>
-          <label class="pledge-cb"><input type="checkbox" id="cb3"><label for="cb3">I commit to talking to someone in my life about the rubbish problem this month.</label></label>
+       <div class="pledge-checkbox-group">
+
+<div class="pledge-cb">
+<input type="checkbox" id="cb1">
+<label for="cb1">I commit to always using a bin — or holding onto my rubbish until I find one.</label>
+</div>
+
+<div class="pledge-cb">
+<input type="checkbox" id="cb2">
+<label for="cb2">I commit to picking up at least one piece of litter I didn't drop, regularly.</label>
+</div>
+
+<div class="pledge-cb">
+<input type="checkbox" id="cb3">
+<label for="cb3">I commit to talking to someone in my life about the rubbish problem this month.</label>
+</div>
+
+</div>
         </div>
         <button class="form-submit" id="pledgeSubmit">I take this pledge →</button>
-        <div class="pledge-count"><strong id="pledgeNum">—</strong> people have taken the pledge so far.</div>
+        <div class="pledge-count"><strong id="pledgeNum">0</strong> people have taken the pledge so far.</div>
       </div>
     </div>
   </div>
@@ -425,84 +439,89 @@ footer { background: #0a0908; padding: 48px 60px; border-top: 1px solid rgba(245
 
 <script>
 // ─────────────────────────────────────────────
-// ⚙️  SUPABASE CONFIG
+// ⚙️ SUPABASE
 // ─────────────────────────────────────────────
+
 const SUPABASE_URL = 'https://cmdhasrtnhqyfujkdlby.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_heHFiMTemx2YfGuTAuPJiw_pNU7adoM';
 const TABLE = 'pledges';
 
-// ── Supabase helpers ──
-async function sbPost(path, body) {
-  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
-    },
-    body: JSON.stringify(body)
-  });
-  return r.json();
-}
 
-// ── Get real total count from Supabase ──
-// Uses HEAD + Prefer:count=exact with no Range header so Supabase
-// returns the full table count in the content-range header (e.g. "*/42")
-async function getPledgeCount() {
-  try {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      method: 'HEAD',
+async function sbPost(path, body) {
+  const r = await fetch(
+    SUPABASE_URL + '/rest/v1/' + path,
+    {
+      method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
-        Prefer: 'count=exact'
-      }
-    });
-    const range = r.headers.get('content-range');
-    // HEAD with count=exact returns "*/TOTAL"
-    if (range && range.includes('/')) {
-      const total = parseInt(range.split('/')[1]);
-      if (!isNaN(total)) return total;
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(body)
     }
-  } catch (e) {
-    // ignore, fall through to fallback below
+  );
+
+  if (!r.ok) {
+    throw new Error(await r.text());
   }
 
-  // Fallback: fetch all rows and count them client-side
-  try {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id', {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + SUPABASE_ANON_KEY
-      }
-    });
-    const data = await r.json();
-    if (Array.isArray(data)) return data.length;
-  } catch (e) {
-    // ignore
-  }
-
-  return null;
+  return true;
 }
+
+
+async function getPledgeCount() {
+
+  try {
+
+    const r = await fetch(
+      SUPABASE_URL + '/rest/v1/' + TABLE + '?select=id',
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+        }
+      }
+    );
+
+
+    if (!r.ok) throw new Error(await r.text());
+
+
+    const data = await r.json();
+
+    return data.length;
+
+
+  } catch(err) {
+
+    console.error("Count error:", err);
+    return null;
+
+  }
+
+}
+
 
 function updateCountDisplay(count) {
-  const el = document.getElementById('pledgeNum');
-  if (el) el.textContent = count.toLocaleString();
-  const modalTotal = document.getElementById('modalTotal');
-  if (modalTotal) modalTotal.textContent = count.toLocaleString();
+
+  document.getElementById('pledgeNum').textContent =
+    count.toLocaleString();
+
+  document.getElementById('modalTotal').textContent =
+    count.toLocaleString();
+
 }
 
-// ── Load pledge count on page load ──
-let pledgeCount = 0;
 
 async function loadPledgeCount() {
+
   const count = await getPledgeCount();
-  if (count !== null) {
-    pledgeCount = count;
-    updateCountDisplay(pledgeCount);
+
+  if(count !== null) {
+    updateCountDisplay(count);
   }
-  // If both methods fail entirely, leave the display as "—" (default HTML)
+
 }
 
 loadPledgeCount();
@@ -566,56 +585,66 @@ document.getElementById('modalShare').addEventListener('click',()=>{
 });
 
 // ── PLEDGE SUBMIT ──
+let pledgeCount = 0;
+
 document.getElementById('pledgeSubmit').addEventListener('click', async () => {
+
   const name = document.getElementById('fname').value.trim();
+
   if (!name) {
     document.getElementById('fname').focus();
     return;
   }
 
+  const suburb = document.getElementById('fsuburb').value.trim();
+
   const btn = document.getElementById('pledgeSubmit');
+
   btn.disabled = true;
   btn.textContent = 'Recording…';
 
-  const suburb = document.getElementById('fsuburb').value.trim();
-
   try {
-    // Insert the pledge
-    await sbPost(TABLE, { name: name, suburb: suburb });
 
-    // Get the updated count
-    let newCount = await getPledgeCount();
+    await sbPost(TABLE, {
+      name: name,
+      suburb: suburb
+    });
 
-    // Fallback if count fetch fails
+
+    const newCount = await getPledgeCount();
+
     if (newCount === null) {
-      newCount = pledgeCount + 1;
+      throw new Error("Count failed");
     }
 
+
     pledgeCount = newCount;
+
     updateCountDisplay(newCount);
-    openModal(name.split(' ')[0], newCount);
 
-    // Reset form
-    document.getElementById('fname').value = '';
-    document.getElementById('fsuburb').value = '';
-    document.getElementById('cb1').checked = false;
-    document.getElementById('cb2').checked = false;
-    document.getElementById('cb3').checked = false;
+    openModal(name.split(" ")[0], newCount);
 
-  } catch (err) {
-    console.error('Pledge failed:', err);
 
-    // Fallback: use local count
-    let fallback = parseInt(localStorage.getItem('rubbishPledgeCount') || '0') + 1;
-    localStorage.setItem('rubbishPledgeCount', fallback);
-    updateCountDisplay(fallback);
-    openModal(name.split(' ')[0], fallback);
+    document.getElementById('fname').value = "";
+    document.getElementById('fsuburb').value = "";
+
+    document.querySelectorAll('.pledge-cb input')
+      .forEach(cb => cb.checked = false);
+
+
+  } catch(err) {
+
+    console.error(err);
+
+    alert("Could not record pledge. Check Supabase settings.");
+
   }
+
 
   btn.disabled = false;
   btn.textContent = 'I take this pledge →';
-});
 
+});
 // ── SHARE ──
 function copyLink(btn){navigator.clipboard.writeText(window.location.href).then(()=>{btn.textContent='✓ Link copied';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 Copy link';btn.classList.remove('copied');},2500);});}
 function shareEmail(){const sub=encodeURIComponent('Something worth reading: The Rubbish Problem');const body=encodeURIComponent('I came across this and thought you should see it.\n\n74 million tonnes of waste. $930 million to clean it up. 75% dropped within 5 metres of a bin.\n\nTake a look: '+window.location.href);window.open('mailto:?subject='+sub+'&body='+body);}
